@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -105,6 +106,34 @@ class Announcement(db.Model):
 
     def __repr__(self):
         return f"<Announcement {self.title}>"
+
+# Query model for storing user queries
+class Query(db.Model):
+    __tablename__ = 'queries'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), nullable=False)
+    query = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    feedback_id = db.Column(db.Integer, db.ForeignKey('feedbacks.id'), nullable=True)
+    
+    feedback = db.relationship('Feedback', backref='query', uselist=False)
+
+    def __repr__(self):
+        return f"<Query {self.id} from {self.name}>"
+
+# Feedback model for storing admin feedback on queries
+class Feedback(db.Model):
+    __tablename__ = 'feedbacks'
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(100), nullable=False)
+    feedback = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<Feedback by {self.email}>"
+
+
 
 
 

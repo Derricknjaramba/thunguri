@@ -12,7 +12,8 @@ from resources import (
     GuestAnnouncementResource, AdminAnnouncementResource,
     AdminProductResource, GuestProductResource,
     AdminNurseryResource, GuestNurseryResource,
-    AdminAboutUsResource, GuestAboutUsResource
+    AdminAboutUsResource, GuestAboutUsResource,
+    AdminFeedbackResource, AdminQueryResource  # Added AdminFeedbackResource and AdminQueryResource
 )
 from config import Config
 
@@ -58,10 +59,13 @@ api.add_resource(GuestProductResource, '/guest/products', '/guest/products/<int:
 api.add_resource(GuestNurseryResource, '/guest/nurseries', '/guest/nurseries/<int:nursery_id>')
 api.add_resource(GuestAboutUsResource, '/guest/aboutus', '/guest/aboutus')
 
+# Admin Routes for Feedback and Queries (with dynamic ID support)
+api.add_resource(AdminFeedbackResource, '/admin/feedback', '/admin/feedback/<int:feedback_id>')  # Admin reviews feedback
+api.add_resource(AdminQueryResource, '/admin/queries', '/admin/queries/<int:query_id>')  # Admin reviews queries
+
 if __name__ == '__main__':
     # Run the app in debug mode for development
     app.run(debug=True)
-
 
 
 

@@ -1,11 +1,10 @@
 import os
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required
-from models import db, Product, Nursery, AboutUs, MillingProcess, AggressionProcess, FarmProgression, HowTo, Announcement, User
+from models import db, Product, Nursery, AboutUs, MillingProcess, AggressionProcess, FarmProgression, HowTo, Announcement, User, Query, Feedback
 from flask import request
 from werkzeug.utils import secure_filename
 from utils import allowed_photo, allowed_video
-
 
 # Admin Resources for User Management
 class UserResource(Resource):
@@ -179,17 +178,13 @@ class GuestNurseryResource(Resource):
 class AdminAboutUsResource(Resource):
     @jwt_required()
     def put(self):
-        # Fetch the incoming JSON data
         data = request.get_json()
 
-        # Try to get the first AboutUs entry
         about_us = AboutUs.query.first()
 
-        # If no entry exists, create a new one
         if not about_us:
             about_us = AboutUs()
 
-        # Update the attributes of the AboutUs entry
         about_us.who_we_are = data.get('who_we_are', about_us.who_we_are)
         about_us.our_story = data.get('our_story', about_us.our_story)
         about_us.mission_statement = data.get('mission_statement', about_us.mission_statement)
@@ -198,25 +193,20 @@ class AdminAboutUsResource(Resource):
         about_us.what_we_do = data.get('what_we_do', about_us.what_we_do)
         about_us.why_choose_us = data.get('why_choose_us', about_us.why_choose_us)
 
-        # Commit the changes to the database
         db.session.add(about_us)
         db.session.commit()
 
-        # Return a success message
         return {'message': 'About Us updated successfully'}, 200
 
 
 # Guest Resources for About Us
 class GuestAboutUsResource(Resource):
     def get(self):
-        # Try to get the first AboutUs entry
         about_us = AboutUs.query.first()
 
-        # If no AboutUs entry exists, return a 404 response
         if not about_us:
             return {'message': 'About Us information not found'}, 404
-        
-        # If the entry exists, return the information
+
         return {
             'who_we_are': about_us.who_we_are,
             'our_story': about_us.our_story,
@@ -233,60 +223,36 @@ class AdminMillingProcessResource(Resource):
     @jwt_required()
     def post(self):
         data = request.get_json()
-        file = request.files.get('video')
-
-        if file and allowed_video(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-
-            new_milling_process = MillingProcess(
-                name=data['name'],
-                description=data['description'],
-                video_path=file_path
-            )
-            db.session.add(new_milling_process)
-            db.session.commit()
-
-            return {'message': 'Milling Process added with video'}, 201
-        return {'message': 'Invalid video format'}, 400
+        milling_process = MillingProcess(name=data['name'], description=data['description'])
+        db.session.add(milling_process)
+        db.session.commit()
+        return {'message': 'Milling Process added'}, 201
 
     @jwt_required()
-    def put(self, milling_process_id):
+    def put(self, process_id):
         data = request.get_json()
-        milling_process = MillingProcess.query.get_or_404(milling_process_id)
-        file = request.files.get('video')
-
-        if file and allowed_video(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-            milling_process.video_path = file_path
-
-        milling_process.name = data['name']
-        milling_process.description = data['description']
+        process = MillingProcess.query.get_or_404(process_id)
+        process.name = data['name']
+        process.description = data['description']
         db.session.commit()
-
         return {'message': 'Milling Process updated'}, 200
 
     @jwt_required()
-    def delete(self, milling_process_id):
-        milling_process = MillingProcess.query.get_or_404(milling_process_id)
-        if milling_process.video_path:
-            os.remove(milling_process.video_path)  # Delete video file
-        db.session.delete(milling_process)
+    def delete(self, process_id):
+        process = MillingProcess.query.get_or_404(process_id)
+        db.session.delete(process)
         db.session.commit()
         return {'message': 'Milling Process deleted'}, 200
 
 
 # Guest Resources for Milling Process
 class GuestMillingProcessResource(Resource):
-    def get(self, milling_process_id=None):
-        if milling_process_id:
-            milling_process = MillingProcess.query.get_or_404(milling_process_id)
-            return {'id': milling_process.id, 'name': milling_process.name, 'description': milling_process.description, 'video_path': milling_process.video_path}, 200
-        milling_processes = MillingProcess.query.all()
-        return [{'id': milling_process.id, 'name': milling_process.name, 'description': milling_process.description, 'video_path': milling_process.video_path} for milling_process in milling_processes], 200
+    def get(self, process_id=None):
+        if process_id:
+            process = MillingProcess.query.get_or_404(process_id)
+            return {'id': process.id, 'name': process.name, 'description': process.description}, 200
+        processes = MillingProcess.query.all()
+        return [{'id': process.id, 'name': process.name, 'description': process.description} for process in processes], 200
 
 
 # Admin Resources for Aggression Process
@@ -294,60 +260,36 @@ class AdminAggressionProcessResource(Resource):
     @jwt_required()
     def post(self):
         data = request.get_json()
-        file = request.files.get('video')
-
-        if file and allowed_video(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-
-            new_aggression_process = AggressionProcess(
-                name=data['name'],
-                description=data['description'],
-                video_path=file_path
-            )
-            db.session.add(new_aggression_process)
-            db.session.commit()
-
-            return {'message': 'Aggression Process added with video'}, 201
-        return {'message': 'Invalid video format'}, 400
+        aggression_process = AggressionProcess(name=data['name'], description=data['description'])
+        db.session.add(aggression_process)
+        db.session.commit()
+        return {'message': 'Aggression Process added'}, 201
 
     @jwt_required()
-    def put(self, aggression_process_id):
+    def put(self, process_id):
         data = request.get_json()
-        aggression_process = AggressionProcess.query.get_or_404(aggression_process_id)
-        file = request.files.get('video')
-
-        if file and allowed_video(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-            aggression_process.video_path = file_path
-
-        aggression_process.name = data['name']
-        aggression_process.description = data['description']
+        process = AggressionProcess.query.get_or_404(process_id)
+        process.name = data['name']
+        process.description = data['description']
         db.session.commit()
-
         return {'message': 'Aggression Process updated'}, 200
 
     @jwt_required()
-    def delete(self, aggression_process_id):
-        aggression_process = AggressionProcess.query.get_or_404(aggression_process_id)
-        if aggression_process.video_path:
-            os.remove(aggression_process.video_path)  # Delete video file
-        db.session.delete(aggression_process)
+    def delete(self, process_id):
+        process = AggressionProcess.query.get_or_404(process_id)
+        db.session.delete(process)
         db.session.commit()
         return {'message': 'Aggression Process deleted'}, 200
 
 
 # Guest Resources for Aggression Process
 class GuestAggressionProcessResource(Resource):
-    def get(self, aggression_process_id=None):
-        if aggression_process_id:
-            aggression_process = AggressionProcess.query.get_or_404(aggression_process_id)
-            return {'id': aggression_process.id, 'name': aggression_process.name, 'description': aggression_process.description, 'video_path': aggression_process.video_path}, 200
-        aggression_processes = AggressionProcess.query.all()
-        return [{'id': aggression_process.id, 'name': aggression_process.name, 'description': aggression_process.description, 'video_path': aggression_process.video_path} for aggression_process in aggression_processes], 200
+    def get(self, process_id=None):
+        if process_id:
+            process = AggressionProcess.query.get_or_404(process_id)
+            return {'id': process.id, 'name': process.name, 'description': process.description}, 200
+        processes = AggressionProcess.query.all()
+        return [{'id': process.id, 'name': process.name, 'description': process.description} for process in processes], 200
 
 
 # Admin Resources for Farm Progression
@@ -355,60 +297,36 @@ class AdminFarmProgressionResource(Resource):
     @jwt_required()
     def post(self):
         data = request.get_json()
-        file = request.files.get('photo')
-
-        if file and allowed_photo(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-
-            new_farm_progression = FarmProgression(
-                name=data['name'],
-                description=data['description'],
-                photo_path=file_path
-            )
-            db.session.add(new_farm_progression)
-            db.session.commit()
-
-            return {'message': 'Farm Progression added with photo'}, 201
-        return {'message': 'Invalid photo format'}, 400
+        farm_progression = FarmProgression(name=data['name'], description=data['description'])
+        db.session.add(farm_progression)
+        db.session.commit()
+        return {'message': 'Farm Progression added'}, 201
 
     @jwt_required()
-    def put(self, farm_progression_id):
+    def put(self, progression_id):
         data = request.get_json()
-        farm_progression = FarmProgression.query.get_or_404(farm_progression_id)
-        file = request.files.get('photo')
-
-        if file and allowed_photo(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-            farm_progression.photo_path = file_path
-
-        farm_progression.name = data['name']
-        farm_progression.description = data['description']
+        progression = FarmProgression.query.get_or_404(progression_id)
+        progression.name = data['name']
+        progression.description = data['description']
         db.session.commit()
-
         return {'message': 'Farm Progression updated'}, 200
 
     @jwt_required()
-    def delete(self, farm_progression_id):
-        farm_progression = FarmProgression.query.get_or_404(farm_progression_id)
-        if farm_progression.photo_path:
-            os.remove(farm_progression.photo_path)  # Delete photo file
-        db.session.delete(farm_progression)
+    def delete(self, progression_id):
+        progression = FarmProgression.query.get_or_404(progression_id)
+        db.session.delete(progression)
         db.session.commit()
         return {'message': 'Farm Progression deleted'}, 200
 
 
 # Guest Resources for Farm Progression
 class GuestFarmProgressionResource(Resource):
-    def get(self, farm_progression_id=None):
-        if farm_progression_id:
-            farm_progression = FarmProgression.query.get_or_404(farm_progression_id)
-            return {'id': farm_progression.id, 'name': farm_progression.name, 'description': farm_progression.description, 'photo_path': farm_progression.photo_path}, 200
-        farm_progressions = FarmProgression.query.all()
-        return [{'id': farm_progression.id, 'name': farm_progression.name, 'description': farm_progression.description, 'photo_path': farm_progression.photo_path} for farm_progression in farm_progressions], 200
+    def get(self, progression_id=None):
+        if progression_id:
+            progression = FarmProgression.query.get_or_404(progression_id)
+            return {'id': progression.id, 'name': progression.name, 'description': progression.description}, 200
+        progressions = FarmProgression.query.all()
+        return [{'id': progression.id, 'name': progression.name, 'description': progression.description} for progression in progressions], 200
 
 
 # Admin Resources for How To
@@ -416,67 +334,55 @@ class AdminHowToResource(Resource):
     @jwt_required()
     def post(self):
         data = request.get_json()
-        new_how_to = HowTo(
-            title=data['title'],
-            description=data['description']
-        )
-        db.session.add(new_how_to)
+        how_to = HowTo(title=data['title'], content=data['content'])
+        db.session.add(how_to)
         db.session.commit()
-
-        return {'message': 'How To added'}, 201
+        return {'message': 'How To guide added'}, 201
 
     @jwt_required()
-    def put(self, how_to_id):
+    def put(self, guide_id):
         data = request.get_json()
-        how_to = HowTo.query.get_or_404(how_to_id)
-
-        how_to.title = data['title']
-        how_to.description = data['description']
+        guide = HowTo.query.get_or_404(guide_id)
+        guide.title = data['title']
+        guide.content = data['content']
         db.session.commit()
-
-        return {'message': 'How To updated'}, 200
+        return {'message': 'How To guide updated'}, 200
 
     @jwt_required()
-    def delete(self, how_to_id):
-        how_to = HowTo.query.get_or_404(how_to_id)
-        db.session.delete(how_to)
+    def delete(self, guide_id):
+        guide = HowTo.query.get_or_404(guide_id)
+        db.session.delete(guide)
         db.session.commit()
-        return {'message': 'How To deleted'}, 200
+        return {'message': 'How To guide deleted'}, 200
 
 
 # Guest Resources for How To
 class GuestHowToResource(Resource):
-    def get(self, how_to_id=None):
-        if how_to_id:
-            how_to = HowTo.query.get_or_404(how_to_id)
-            return {'id': how_to.id, 'title': how_to.title, 'description': how_to.description}, 200
-        how_to_list = HowTo.query.all()
-        return [{'id': how_to.id, 'title': how_to.title, 'description': how_to.description} for how_to in how_to_list], 200
+    def get(self, guide_id=None):
+        if guide_id:
+            guide = HowTo.query.get_or_404(guide_id)
+            return {'id': guide.id, 'title': guide.title, 'content': guide.content}, 200
+        guides = HowTo.query.all()
+        return [{'id': guide.id, 'title': guide.title, 'content': guide.content} for guide in guides], 200
 
 
-# Admin Resources for Announcements
+# Admin Resources for Announcement
 class AdminAnnouncementResource(Resource):
     @jwt_required()
     def post(self):
         data = request.get_json()
-        new_announcement = Announcement(
-            title=data['title'],
-            content=data['content']
-        )
-        db.session.add(new_announcement)
+        announcement = Announcement(title=data['title'], content=data['content'])
+        db.session.add(announcement)
         db.session.commit()
-
         return {'message': 'Announcement added'}, 201
 
     @jwt_required()
     def put(self, announcement_id):
         data = request.get_json()
         announcement = Announcement.query.get_or_404(announcement_id)
-
         announcement.title = data['title']
         announcement.content = data['content']
         db.session.commit()
-
         return {'message': 'Announcement updated'}, 200
 
     @jwt_required()
@@ -487,7 +393,7 @@ class AdminAnnouncementResource(Resource):
         return {'message': 'Announcement deleted'}, 200
 
 
-# Guest Resources for Announcements
+# Guest Resources for Announcement
 class GuestAnnouncementResource(Resource):
     def get(self, announcement_id=None):
         if announcement_id:
@@ -495,6 +401,138 @@ class GuestAnnouncementResource(Resource):
             return {'id': announcement.id, 'title': announcement.title, 'content': announcement.content}, 200
         announcements = Announcement.query.all()
         return [{'id': announcement.id, 'title': announcement.title, 'content': announcement.content} for announcement in announcements], 200
+
+
+# Admin Resources for Queries
+class AdminQueryResource(Resource):
+    @jwt_required()
+    def get(self, query_id=None):
+        if query_id:
+            query = Query.query.get_or_404(query_id)
+            return {
+                'id': query.id,
+                'name': query.name,
+                'email': query.email,
+                'query': query.query,
+                'timestamp': query.timestamp
+            }, 200
+        queries = Query.query.all()
+        return [{'id': query.id, 'name': query.name, 'email': query.email, 'query': query.query, 'timestamp': query.timestamp} for query in queries], 200
+
+    @jwt_required()
+    def post(self):
+        data = request.get_json()
+        new_query = Query(
+            name=data['name'],
+            email=data['email'],
+            query=data['query']
+        )
+        db.session.add(new_query)
+        db.session.commit()
+        return {'message': 'Query submitted'}, 201
+
+    @jwt_required()
+    def put(self, query_id):
+        data = request.get_json()
+        query = Query.query.get_or_404(query_id)
+        
+        query.name = data['name']
+        query.email = data['email']
+        query.query = data['query']
+        db.session.commit()
+
+        return {'message': 'Query updated'}, 200
+
+    @jwt_required()
+    def delete(self, query_id):
+        query = Query.query.get_or_404(query_id)
+        db.session.delete(query)
+        db.session.commit()
+        return {'message': 'Query deleted'}, 200
+
+
+# Admin Resources for Feedback
+class AdminFeedbackResource(Resource):
+    @jwt_required()
+    def get(self, feedback_id=None):
+        if feedback_id:
+            feedback = Feedback.query.get_or_404(feedback_id)
+            return {
+                'id': feedback.id,
+                'name': feedback.name,
+                'email': feedback.email,
+                'feedback': feedback.feedback,
+                'timestamp': feedback.timestamp
+            }, 200
+        feedbacks = Feedback.query.all()
+        return [{
+            'id': feedback.id,
+            'name': feedback.name,
+            'email': feedback.email,
+            'feedback': feedback.feedback,
+            'timestamp': feedback.timestamp
+        } for feedback in feedbacks], 200
+
+    @jwt_required()
+    def post(self):
+        data = request.get_json()
+        new_feedback = Feedback(
+            name=data['name'],
+            email=data['email'],
+            feedback=data['feedback']
+        )
+        db.session.add(new_feedback)
+        db.session.commit()
+        return {'message': 'Feedback submitted'}, 201
+
+    @jwt_required()
+    def put(self, feedback_id):
+        data = request.get_json()
+        feedback = Feedback.query.get_or_404(feedback_id)
+
+        feedback.name = data['name']
+        feedback.email = data['email']
+        feedback.feedback = data['feedback']
+        db.session.commit()
+
+        return {'message': 'Feedback updated'}, 200
+
+    @jwt_required()
+    def delete(self, feedback_id):
+        feedback = Feedback.query.get_or_404(feedback_id)
+        db.session.delete(feedback)
+        db.session.commit()
+        return {'message': 'Feedback deleted'}, 200
+
+
+# Guest Resources for Queries
+class GuestQueryResource(Resource):
+    def post(self):
+        data = request.get_json()
+        new_query = Query(
+            name=data['name'],
+            email=data['email'],
+            query=data['query']
+        )
+        db.session.add(new_query)
+        db.session.commit()
+        return {'message': 'Query submitted'}, 201
+
+
+# Guest Resources for Feedback
+class GuestFeedbackResource(Resource):
+    def post(self):
+        data = request.get_json()
+        new_feedback = Feedback(
+            name=data['name'],
+            email=data['email'],
+            feedback=data['feedback']
+        )
+        db.session.add(new_feedback)
+        db.session.commit()
+        return {'message': 'Feedback submitted'}, 201
+
+
 
 
 
