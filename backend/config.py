@@ -1,26 +1,31 @@
 import os
 
 class Config:
-    # Flask Configurations
+    """
+    Configuration class for the Flask application.
+    """
+
+    # Core Flask settings
     SECRET_KEY = 'your_secret_key'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///site.db'  # Database URI
-    SQLALCHEMY_TRACK_MODIFICATIONS = False  # Disable modification tracking
-    JWT_SECRET_KEY = 'jwt-secret-key'  # Secret key for JWT encoding/decoding
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///site.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # File upload configurations
-    UPLOAD_FOLDER = 'uploads/'  # Folder where files will be uploaded
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # Limit upload size to 16 MB (you can adjust this)
+    # JWT for authentication
+    JWT_SECRET_KEY = 'jwt-secret-key'
 
-    # Allowed file extensions for uploads
+    # File upload settings
+    UPLOAD_FOLDER = 'uploads/'
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload limit
+
+    # Allowed extensions
     ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv'}
     ALLOWED_PHOTO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
 
-    # If you want to specify max sizes per file type, you can do that as well (optional)
-    MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 MB for photos
-    MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50 MB for videos
+    # Individual file size limits
+    MAX_PHOTO_SIZE = 5 * 1024 * 1024      # 5 MB
+    MAX_VIDEO_SIZE = 50 * 1024 * 1024     # 50 MB
 
-    # You can also specify other configurations for your app here if needed
-    # Example: EMAIL_CONFIG, API_KEYS, etc.
+
 
 
 

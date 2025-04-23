@@ -1,56 +1,166 @@
-import os
+from flasgger import swag_from
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required
-from models import db, Product, Nursery, AboutUs, MillingProcess, AggressionProcess, FarmProgression, HowTo, Announcement, User, Query, Feedback
+from models import db, Product, Nursery, AboutUs, MillingProcess, AggressionProcess, FarmProgression, HowTo, Announcement, User
 from flask import request
 from werkzeug.utils import secure_filename
-from utils import allowed_photo, allowed_video
+import os
+from utils import allowed_photo
 
-# Admin Resources for User Management
+
+# User Resource
 class UserResource(Resource):
     @jwt_required()
-    def get(self, user_id=None):
-        if user_id:
-            user = User.query.get_or_404(user_id)
-            return {'id': user.id, 'username': user.username, 'email': user.email, 'is_admin': user.is_admin}, 200
-        users = User.query.all()
-        return [{'id': user.id, 'username': user.username, 'email': user.email, 'is_admin': user.is_admin} for user in users], 200
+    @swag_from({
+        'tags': ['User'],
+        'summary': 'Retrieve user details',
+        'description': 'Fetch user details by ID.',
+        'parameters': [
+            {
+                'name': 'user_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True,
+                'description': 'ID of the user'
+            }
+        ],
+        'responses': {
+            200: {
+                'description': 'User details retrieved successfully'
+            }
+        }
+    })
+    def get(self, user_id):
+        user = User.query.get_or_404(user_id)
+        return {'id': user.id, 'username': user.username, 'email': user.email}, 200
 
     @jwt_required()
-    def post(self):
-        data = request.get_json()
-        new_user = User(
-            username=data['username'],
-            email=data['email'],
-            password=data['password'],  # Ideally, you should hash the password before saving
-            is_admin=data.get('is_admin', False)
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        return {'message': 'User created'}, 201
-
-    @jwt_required()
+    @swag_from({
+        'tags': ['User'],
+        'summary': 'Update user details',
+        'description': 'Update user information by ID.',
+        'parameters': [
+            {
+                'name': 'user_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            },
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'username': {'type': 'string'},
+                        'email': {'type': 'string'}
+                    },
+                    'required': ['username', 'email']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'User updated successfully'}
+        }
+    })
     def put(self, user_id):
         data = request.get_json()
         user = User.query.get_or_404(user_id)
 
         user.username = data['username']
         user.email = data['email']
-        user.is_admin = data.get('is_admin', user.is_admin)
         db.session.commit()
-        return {'message': 'User updated'}, 200
+
+        return {'message': 'User updated successfully'}, 200
 
     @jwt_required()
+    @swag_from({
+        'tags': ['User'],
+        'summary': 'Delete user',
+        'description': 'Delete user by ID.',
+        'parameters': [
+            {
+                'name': 'user_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True,
+                'description': 'ID of the user to delete'
+            }
+        ],
+        'responses': {
+            200: {'description': 'User deleted successfully'}
+        }
+    })
     def delete(self, user_id):
         user = User.query.get_or_404(user_id)
         db.session.delete(user)
         db.session.commit()
-        return {'message': 'User deleted'}, 200
+        return {'message': 'User deleted successfully'}, 200
 
 
-# Admin Resources for Product
-class AdminProductResource(Resource):
+#class ProductResource(Resource):
+class ProductResource(Resource):
+    @swag_from({
+        'tags': ['Product'],
+        'summary': 'Retrieve product(s)',
+        'description': 'Fetch a list of all products or a specific product by ID.',
+        'parameters': [
+            {
+                'name': 'product_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': False,
+                'description': 'ID of the product'
+            }
+        ],
+        'responses': {
+            200: {
+                'description': 'List of products or product details'
+            }
+        }
+    })
+    def get(self, product_id=None):
+        # If a product ID is provided, fetch the specific product
+        if product_id:
+            product = Product.query.get_or_404(product_id)
+            return {'id': product.id, 'name': product.name, 'description': product.description, 'price': product.price, 'image_path': product.image_path}, 200
+        
+        # If no product ID is provided, fetch all products
+        products = Product.query.all()
+        return [{'id': product.id, 'name': product.name, 'description': product.description, 'price': product.price, 'image_path': product.image_path} for product in products], 200
+
+    # The rest of the methods (POST, PUT, DELETE) remain secured with JWT authentication
     @jwt_required()
+    @swag_from({
+        'tags': ['Product'],
+        'summary': 'Create product',
+        'description': 'Create a new product in the system.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'name': {'type': 'string'},
+                        'description': {'type': 'string'},
+                        'price': {'type': 'number'}
+                    },
+                    'required': ['name', 'description', 'price']
+                }
+            },
+            {
+                'name': 'image',
+                'in': 'formData',
+                'type': 'file',
+                'required': False,
+                'description': 'Product image'
+            }
+        ],
+        'responses': {
+            201: {'description': 'Product created'}
+        }
+    })
     def post(self):
         data = request.get_json()
         file = request.files.get('image')
@@ -69,295 +179,619 @@ class AdminProductResource(Resource):
             db.session.add(new_product)
             db.session.commit()
 
-            return {'message': 'Product added with image'}, 201
+            return {'message': 'Product created successfully'}, 201
         return {'message': 'Invalid image format'}, 400
 
     @jwt_required()
+    @swag_from({
+        'tags': ['Product'],
+        'summary': 'Update product',
+        'description': 'Update an existing product by their ID.',
+        'parameters': [
+            {
+                'name': 'product_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            },
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'name': {'type': 'string'},
+                        'description': {'type': 'string'},
+                        'price': {'type': 'number'}
+                    },
+                    'required': ['name', 'description', 'price']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'Product updated'}
+        }
+    })
     def put(self, product_id):
         data = request.get_json()
         product = Product.query.get_or_404(product_id)
-        file = request.files.get('image')
-
-        if file and allowed_photo(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-            product.image_path = file_path
 
         product.name = data['name']
         product.description = data['description']
         product.price = data['price']
         db.session.commit()
 
-        return {'message': 'Product updated'}, 200
+        return {'message': 'Product updated successfully'}, 200
 
     @jwt_required()
+    @swag_from({
+        'tags': ['Product'],
+        'summary': 'Delete product',
+        'description': 'Delete a product from the system by their ID.',
+        'parameters': [
+            {
+                'name': 'product_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            }
+        ],
+        'responses': {
+            200: {'description': 'Product deleted'}
+        }
+    })
     def delete(self, product_id):
         product = Product.query.get_or_404(product_id)
-        if product.image_path:
-            os.remove(product.image_path)  # Delete image file
         db.session.delete(product)
         db.session.commit()
-        return {'message': 'Product deleted'}, 200
+        return {'message': 'Product deleted successfully'}, 200
 
 
-# Guest Resources for Product
-class GuestProductResource(Resource):
-    def get(self, product_id=None):
-        if product_id:
-            product = Product.query.get_or_404(product_id)
-            return {'id': product.id, 'name': product.name, 'description': product.description, 'price': product.price, 'image_path': product.image_path}, 200
-        products = Product.query.all()
-        return [{'id': product.id, 'name': product.name, 'description': product.description, 'price': product.price, 'image_path': product.image_path} for product in products], 200
 
+class NurseryResource(Resource):
+    @swag_from({
+        'tags': ['Nursery'],
+        'summary': 'Retrieve nursery details',
+        'description': 'Fetch a list of all nurseries or a specific nursery by ID.',
+        'parameters': [
+            {
+                'name': 'nursery_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': False,
+                'description': 'ID of the nursery'
+            }
+        ],
+        'responses': {
+            200: {
+                'description': 'List of nurseries or nursery details'
+            }
+        }
+    })
+    def get(self, nursery_id=None):
+        # If a nursery ID is provided, fetch the specific nursery
+        if nursery_id:
+            nursery = Nursery.query.get_or_404(nursery_id)
+            return {'id': nursery.id, 'name': nursery.name, 'location': nursery.location, 'description': nursery.description}, 200
+        
+        # If no nursery ID is provided, fetch all nurseries
+        nurseries = Nursery.query.all()
+        return [{'id': nursery.id, 'name': nursery.name, 'location': nursery.location, 'description': nursery.description} for nursery in nurseries], 200
 
-# Admin Resources for Nursery
-class AdminNurseryResource(Resource):
+    # The rest of the methods (POST, PUT, DELETE) remain secured with JWT authentication
     @jwt_required()
+    @swag_from({
+        'tags': ['Nursery'],
+        'summary': 'Create nursery',
+        'description': 'Create a new nursery.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'name': {'type': 'string'},
+                        'location': {'type': 'string'},
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['name', 'location', 'description']
+                }
+            }
+        ],
+        'responses': {
+            201: {'description': 'Nursery created'}
+        }
+    })
     def post(self):
         data = request.get_json()
-        file = request.files.get('photo')
 
-        if file and allowed_photo(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-
-            new_nursery = Nursery(
-                name=data['name'],
-                location=data['location'],
-                description=data['description'],
-                photo_path=file_path
-            )
-            db.session.add(new_nursery)
-            db.session.commit()
-
-            return {'message': 'Nursery added with photo'}, 201
-        return {'message': 'Invalid image format'}, 400
+        new_nursery = Nursery(
+            name=data['name'],
+            location=data['location'],
+            description=data['description']
+        )
+        db.session.add(new_nursery)
+        db.session.commit()
+        return {'message': 'Nursery created successfully'}, 201
 
     @jwt_required()
+    @swag_from({
+        'tags': ['Nursery'],
+        'summary': 'Update nursery',
+        'description': 'Update an existing nursery by their ID.',
+        'parameters': [
+            {
+                'name': 'nursery_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            },
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'name': {'type': 'string'},
+                        'location': {'type': 'string'},
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['name', 'location', 'description']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'Nursery updated'}
+        }
+    })
     def put(self, nursery_id):
         data = request.get_json()
         nursery = Nursery.query.get_or_404(nursery_id)
-        file = request.files.get('photo')
-
-        if file and allowed_photo(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('uploads', filename)
-            file.save(file_path)
-            nursery.photo_path = file_path
 
         nursery.name = data['name']
         nursery.location = data['location']
         nursery.description = data['description']
         db.session.commit()
 
-        return {'message': 'Nursery updated'}, 200
+        return {'message': 'Nursery updated successfully'}, 200
 
     @jwt_required()
+    @swag_from({
+        'tags': ['Nursery'],
+        'summary': 'Delete nursery',
+        'description': 'Delete a nursery from the system by their ID.',
+        'parameters': [
+            {
+                'name': 'nursery_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            }
+        ],
+        'responses': {
+            200: {'description': 'Nursery deleted'}
+        }
+    })
     def delete(self, nursery_id):
         nursery = Nursery.query.get_or_404(nursery_id)
-        if nursery.photo_path:
-            os.remove(nursery.photo_path)  # Delete photo file
         db.session.delete(nursery)
         db.session.commit()
-        return {'message': 'Nursery deleted'}, 200
+        return {'message': 'Nursery deleted successfully'}, 200
 
 
-# Guest Resources for Nursery
-class GuestNurseryResource(Resource):
-    def get(self, nursery_id=None):
-        if nursery_id:
-            nursery = Nursery.query.get_or_404(nursery_id)
-            return {'id': nursery.id, 'name': nursery.name, 'location': nursery.location, 'description': nursery.description, 'photo_path': nursery.photo_path}, 200
-        nurseries = Nursery.query.all()
-        return [{'id': nursery.id, 'name': nursery.name, 'location': nursery.location, 'description': nursery.description, 'photo_path': nursery.photo_path} for nursery in nurseries], 200
+# class AboutUsResource(Resource):
+class AboutUsResource(Resource):
+    @swag_from({
+        'tags': ['About Us'],
+        'summary': 'Retrieve About Us details',
+        'description': 'Fetch the About Us details.',
+        'responses': {
+            200: {'description': 'About Us details retrieved successfully'}
+        }
+    })
+    def get(self):
+        about_us = AboutUs.query.first()
+        return {'id': about_us.id, 'description': about_us.description}, 200
 
-
-# Admin Resources for About Us
-class AdminAboutUsResource(Resource):
     @jwt_required()
+    @swag_from({
+        'tags': ['About Us'],
+        'summary': 'Update About Us details',
+        'description': 'Update About Us information.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'About Us updated successfully'}
+        }
+    })
     def put(self):
         data = request.get_json()
-
         about_us = AboutUs.query.first()
 
-        if not about_us:
-            about_us = AboutUs()
-
-        about_us.who_we_are = data.get('who_we_are', about_us.who_we_are)
-        about_us.our_story = data.get('our_story', about_us.our_story)
-        about_us.mission_statement = data.get('mission_statement', about_us.mission_statement)
-        about_us.vision = data.get('vision', about_us.vision)
-        about_us.core_values = data.get('core_values', about_us.core_values)
-        about_us.what_we_do = data.get('what_we_do', about_us.what_we_do)
-        about_us.why_choose_us = data.get('why_choose_us', about_us.why_choose_us)
-
-        db.session.add(about_us)
+        about_us.description = data['description']
         db.session.commit()
 
         return {'message': 'About Us updated successfully'}, 200
 
+    @jwt_required()
+    @swag_from({
+        'tags': ['About Us'],
+        'summary': 'Create About Us details',
+        'description': 'Create a new About Us record.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            201: {'description': 'About Us created successfully'}
+        }
+    })
+    def post(self):
+        data = request.get_json()
 
-# Guest Resources for About Us
-class GuestAboutUsResource(Resource):
+        new_about_us = AboutUs(
+            description=data['description']
+        )
+        db.session.add(new_about_us)
+        db.session.commit()
+
+        return {'message': 'About Us created successfully'}, 201
+
+    @jwt_required()
+    @swag_from({
+        'tags': ['About Us'],
+        'summary': 'Delete About Us details',
+        'description': 'Delete the About Us record.',
+        'parameters': [
+            {
+                'name': 'about_us_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True,
+                'description': 'ID of the About Us record to delete'
+            }
+        ],
+        'responses': {
+            200: {'description': 'About Us deleted successfully'}
+        }
+    })
+    def delete(self):
+        about_us = AboutUs.query.first()  # Assuming there's only one AboutUs record
+        if about_us:
+            db.session.delete(about_us)
+            db.session.commit()
+            return {'message': 'About Us deleted successfully'}, 200
+        else:
+            return {'message': 'No About Us record found to delete'}, 404
+class MillingProcessResource(Resource):
+    @swag_from({
+        'tags': ['Milling Process'],
+        'summary': 'Retrieve Milling Process details',
+        'description': 'Fetch the Milling Process details.',
+        'responses': {
+            200: {'description': 'Milling Process details retrieved successfully'}
+        }
+    })
     def get(self):
-        about_us = AboutUs.query.first()
-
-        if not about_us:
-            return {'message': 'About Us information not found'}, 404
-
+        milling_process = MillingProcess.query.first()
+        if not milling_process:
+            return {'message': 'No Milling Process found'}, 404
         return {
-            'who_we_are': about_us.who_we_are,
-            'our_story': about_us.our_story,
-            'mission_statement': about_us.mission_statement,
-            'vision': about_us.vision,
-            'core_values': about_us.core_values,
-            'what_we_do': about_us.what_we_do,
-            'why_choose_us': about_us.why_choose_us
+            'id': milling_process.id,
+            'description': milling_process.description
         }, 200
 
-
-# Admin Resources for Milling Process
-class AdminMillingProcessResource(Resource):
     @jwt_required()
+    @swag_from({
+        'tags': ['Milling Process'],
+        'summary': 'Update Milling Process details',
+        'description': 'Update Milling Process information.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'Milling Process updated successfully'}
+        }
+    })
+    def put(self):
+        data = request.get_json()
+        milling_process = MillingProcess.query.first()
+        if not milling_process:
+            return {'message': 'No Milling Process found to update'}, 404
+
+        milling_process.description = data['description']
+        db.session.commit()
+        return {'message': 'Milling Process updated successfully'}, 200
+
+    @jwt_required()
+    @swag_from({
+        'tags': ['Milling Process'],
+        'summary': 'Delete Milling Process',
+        'description': 'Delete the Milling Process from the system.',
+        'responses': {
+            200: {'description': 'Milling Process deleted successfully'}
+        }
+    })
+    def delete(self):
+        milling_process = MillingProcess.query.first()
+        if not milling_process:
+            return {'message': 'No Milling Process found to delete'}, 404
+
+        db.session.delete(milling_process)
+        db.session.commit()
+        return {'message': 'Milling Process deleted successfully'}, 200
+
+    @jwt_required()
+    @swag_from({
+        'tags': ['Milling Process'],
+        'summary': 'Add a new Milling Process',
+        'description': 'Create a new Milling Process in the system.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            201: {'description': 'Milling Process created successfully'}
+        }
+    })
     def post(self):
         data = request.get_json()
-        milling_process = MillingProcess(name=data['name'], description=data['description'])
-        db.session.add(milling_process)
+        new_milling_process = MillingProcess(description=data['description'])
+        db.session.add(new_milling_process)
         db.session.commit()
-        return {'message': 'Milling Process added'}, 201
+        return {'message': 'Milling Process created successfully'}, 201
+
+
+#
+class AggressionProcessResource(Resource):
+    @swag_from({
+        'tags': ['Aggression Process'],
+        'summary': 'Retrieve Aggression Process details',
+        'description': 'Fetch the Aggression Process details.',
+        'responses': {
+            200: {'description': 'Aggression Process details retrieved successfully'}
+        }
+    })
+    def get(self):
+        aggression_process = AggressionProcess.query.first()
+        return {'id': aggression_process.id, 'description': aggression_process.description}, 200
 
     @jwt_required()
-    def put(self, process_id):
+    @swag_from({
+        'tags': ['Aggression Process'],
+        'summary': 'Update Aggression Process details',
+        'description': 'Update Aggression Process information.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'Aggression Process updated successfully'}
+        }
+    })
+    def put(self):
         data = request.get_json()
-        process = MillingProcess.query.get_or_404(process_id)
-        process.name = data['name']
-        process.description = data['description']
+        aggression_process = AggressionProcess.query.first()
+
+        aggression_process.description = data['description']
         db.session.commit()
-        return {'message': 'Milling Process updated'}, 200
+
+        return {'message': 'Aggression Process updated successfully'}, 200
 
     @jwt_required()
-    def delete(self, process_id):
-        process = MillingProcess.query.get_or_404(process_id)
-        db.session.delete(process)
-        db.session.commit()
-        return {'message': 'Milling Process deleted'}, 200
-
-
-# Guest Resources for Milling Process
-class GuestMillingProcessResource(Resource):
-    def get(self, process_id=None):
-        if process_id:
-            process = MillingProcess.query.get_or_404(process_id)
-            return {'id': process.id, 'name': process.name, 'description': process.description}, 200
-        processes = MillingProcess.query.all()
-        return [{'id': process.id, 'name': process.name, 'description': process.description} for process in processes], 200
-
-
-# Admin Resources for Aggression Process
-class AdminAggressionProcessResource(Resource):
-    @jwt_required()
+    @swag_from({
+        'tags': ['Aggression Process'],
+        'summary': 'Add a new Aggression Process',
+        'description': 'Create a new Aggression Process in the system.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            201: {'description': 'Aggression Process created successfully'}
+        }
+    })
     def post(self):
         data = request.get_json()
-        aggression_process = AggressionProcess(name=data['name'], description=data['description'])
-        db.session.add(aggression_process)
+
+        new_aggression_process = AggressionProcess(
+            description=data['description']
+        )
+        db.session.add(new_aggression_process)
         db.session.commit()
-        return {'message': 'Aggression Process added'}, 201
+
+        return {'message': 'Aggression Process created successfully'}, 201
 
     @jwt_required()
-    def put(self, process_id):
+    @swag_from({
+        'tags': ['Aggression Process'],
+        'summary': 'Delete Aggression Process',
+        'description': 'Delete the Aggression Process from the system.',
+        'responses': {
+            200: {'description': 'Aggression Process deleted successfully'}
+        }
+    })
+    def delete(self):
+        aggression_process = AggressionProcess.query.first()
+        db.session.delete(aggression_process)
+        db.session.commit()
+        return {'message': 'Aggression Process deleted successfully'}, 200
+    
+
+class FarmProgressionResource(Resource):
+    @swag_from({
+        'tags': ['Farm Progression'],
+        'summary': 'Retrieve Farm Progression details',
+        'description': 'Fetch the Farm Progression details.',
+        'responses': {
+            200: {'description': 'Farm Progression details retrieved successfully'}
+        }
+    })
+    def get(self):
+        farm_progression = FarmProgression.query.first()
+        return {
+            'id': farm_progression.id,
+            'description': farm_progression.description
+        }, 200
+
+    @jwt_required()
+    @swag_from({
+        'tags': ['Farm Progression'],
+        'summary': 'Update Farm Progression details',
+        'description': 'Update Farm Progression information.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'Farm Progression updated successfully'}
+        }
+    })
+    def put(self):
         data = request.get_json()
-        process = AggressionProcess.query.get_or_404(process_id)
-        process.name = data['name']
-        process.description = data['description']
+        farm_progression = FarmProgression.query.first()
+
+        farm_progression.description = data['description']
         db.session.commit()
-        return {'message': 'Aggression Process updated'}, 200
+
+        return {'message': 'Farm Progression updated successfully'}, 200
 
     @jwt_required()
-    def delete(self, process_id):
-        process = AggressionProcess.query.get_or_404(process_id)
-        db.session.delete(process)
+    @swag_from({
+        'tags': ['Farm Progression'],
+        'summary': 'Delete Farm Progression',
+        'description': 'Delete the Farm Progression from the system.',
+        'responses': {
+            200: {'description': 'Farm Progression deleted successfully'}
+        }
+    })
+    def delete(self):
+        farm_progression = FarmProgression.query.first()
+        db.session.delete(farm_progression)
         db.session.commit()
-        return {'message': 'Aggression Process deleted'}, 200
+        return {'message': 'Farm Progression deleted successfully'}, 200
 
-
-# Guest Resources for Aggression Process
-class GuestAggressionProcessResource(Resource):
-    def get(self, process_id=None):
-        if process_id:
-            process = AggressionProcess.query.get_or_404(process_id)
-            return {'id': process.id, 'name': process.name, 'description': process.description}, 200
-        processes = AggressionProcess.query.all()
-        return [{'id': process.id, 'name': process.name, 'description': process.description} for process in processes], 200
-
-
-# Admin Resources for Farm Progression
-class AdminFarmProgressionResource(Resource):
     @jwt_required()
+    @swag_from({
+        'tags': ['Farm Progression'],
+        'summary': 'Add a new Farm Progression',
+        'description': 'Create a new Farm Progression in the system.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'description': {'type': 'string'}
+                    },
+                    'required': ['description']
+                }
+            }
+        ],
+        'responses': {
+            201: {'description': 'Farm Progression created successfully'}
+        }
+    })
     def post(self):
         data = request.get_json()
-        farm_progression = FarmProgression(name=data['name'], description=data['description'])
-        db.session.add(farm_progression)
+
+        new_farm_progression = FarmProgression(
+            description=data['description']
+        )
+        db.session.add(new_farm_progression)
         db.session.commit()
-        return {'message': 'Farm Progression added'}, 201
 
-    @jwt_required()
-    def put(self, progression_id):
-        data = request.get_json()
-        progression = FarmProgression.query.get_or_404(progression_id)
-        progression.name = data['name']
-        progression.description = data['description']
-        db.session.commit()
-        return {'message': 'Farm Progression updated'}, 200
-
-    @jwt_required()
-    def delete(self, progression_id):
-        progression = FarmProgression.query.get_or_404(progression_id)
-        db.session.delete(progression)
-        db.session.commit()
-        return {'message': 'Farm Progression deleted'}, 200
+        return {'message': 'Farm Progression created successfully'}, 201
 
 
-# Guest Resources for Farm Progression
-class GuestFarmProgressionResource(Resource):
-    def get(self, progression_id=None):
-        if progression_id:
-            progression = FarmProgression.query.get_or_404(progression_id)
-            return {'id': progression.id, 'name': progression.name, 'description': progression.description}, 200
-        progressions = FarmProgression.query.all()
-        return [{'id': progression.id, 'name': progression.name, 'description': progression.description} for progression in progressions], 200
 
-
-# Admin Resources for How To
-class AdminHowToResource(Resource):
-    @jwt_required()
-    def post(self):
-        data = request.get_json()
-        how_to = HowTo(title=data['title'], content=data['content'])
-        db.session.add(how_to)
-        db.session.commit()
-        return {'message': 'How To guide added'}, 201
-
-    @jwt_required()
-    def put(self, guide_id):
-        data = request.get_json()
-        guide = HowTo.query.get_or_404(guide_id)
-        guide.title = data['title']
-        guide.content = data['content']
-        db.session.commit()
-        return {'message': 'How To guide updated'}, 200
-
-    @jwt_required()
-    def delete(self, guide_id):
-        guide = HowTo.query.get_or_404(guide_id)
-        db.session.delete(guide)
-        db.session.commit()
-        return {'message': 'How To guide deleted'}, 200
-
-
-# Guest Resources for How To
-class GuestHowToResource(Resource):
+# 
+class HowToResource(Resource):
+    @swag_from({
+        'tags': ['How To'],
+        'summary': 'Retrieve How To guide',
+        'description': 'Fetch a list of How To guides or a specific guide by ID.',
+        'parameters': [
+            {
+                'name': 'guide_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': False,
+                'description': 'ID of the How To guide'
+            }
+        ],
+        'responses': {
+            200: {'description': 'How To guides retrieved successfully'}
+        }
+    })
     def get(self, guide_id=None):
         if guide_id:
             guide = HowTo.query.get_or_404(guide_id)
@@ -365,36 +799,124 @@ class GuestHowToResource(Resource):
         guides = HowTo.query.all()
         return [{'id': guide.id, 'title': guide.title, 'content': guide.content} for guide in guides], 200
 
-
-# Admin Resources for Announcement
-class AdminAnnouncementResource(Resource):
     @jwt_required()
+    @swag_from({
+        'tags': ['How To'],
+        'summary': 'Create How To guide',
+        'description': 'Create a new How To guide.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'title': {'type': 'string'},
+                        'content': {'type': 'string'}
+                    },
+                    'required': ['title', 'content']
+                }
+            }
+        ],
+        'responses': {
+            201: {'description': 'How To guide created'}
+        }
+    })
     def post(self):
         data = request.get_json()
-        announcement = Announcement(title=data['title'], content=data['content'])
-        db.session.add(announcement)
+
+        new_guide = HowTo(
+            title=data['title'],
+            content=data['content']
+        )
+        db.session.add(new_guide)
         db.session.commit()
-        return {'message': 'Announcement added'}, 201
+
+        return {'message': 'How To guide created successfully'}, 201
 
     @jwt_required()
-    def put(self, announcement_id):
+    @swag_from({
+        'tags': ['How To'],
+        'summary': 'Update How To guide',
+        'description': 'Update an existing How To guide by their ID.',
+        'parameters': [
+            {
+                'name': 'guide_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            },
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'title': {'type': 'string'},
+                        'content': {'type': 'string'}
+                    },
+                    'required': ['title', 'content']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'How To guide updated'}
+        }
+    })
+    def put(self, guide_id):
         data = request.get_json()
-        announcement = Announcement.query.get_or_404(announcement_id)
-        announcement.title = data['title']
-        announcement.content = data['content']
+        guide = HowTo.query.get_or_404(guide_id)
+
+        guide.title = data['title']
+        guide.content = data['content']
         db.session.commit()
-        return {'message': 'Announcement updated'}, 200
+
+        return {'message': 'How To guide updated successfully'}, 200
 
     @jwt_required()
-    def delete(self, announcement_id):
-        announcement = Announcement.query.get_or_404(announcement_id)
-        db.session.delete(announcement)
+    @swag_from({
+        'tags': ['How To'],
+        'summary': 'Delete How To guide',
+        'description': 'Delete a How To guide by their ID.',
+        'parameters': [
+            {
+                'name': 'guide_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True,
+                'description': 'ID of the How To guide'
+            }
+        ],
+        'responses': {
+            200: {'description': 'How To guide deleted successfully'}
+        }
+    })
+    def delete(self, guide_id):
+        guide = HowTo.query.get_or_404(guide_id)
+        db.session.delete(guide)
         db.session.commit()
-        return {'message': 'Announcement deleted'}, 200
+        return {'message': 'How To guide deleted successfully'}, 200
 
 
-# Guest Resources for Announcement
-class GuestAnnouncementResource(Resource):
+
+class AnnouncementResource(Resource):
+    @swag_from({
+        'tags': ['Announcements'],
+        'summary': 'Retrieve Announcements',
+        'description': 'Fetch a list of announcements or a specific announcement by ID.',
+        'parameters': [
+            {
+                'name': 'announcement_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': False,
+                'description': 'ID of the announcement'
+            }
+        ],
+        'responses': {
+            200: {'description': 'Announcements retrieved successfully'}
+        }
+    })
     def get(self, announcement_id=None):
         if announcement_id:
             announcement = Announcement.query.get_or_404(announcement_id)
@@ -402,141 +924,103 @@ class GuestAnnouncementResource(Resource):
         announcements = Announcement.query.all()
         return [{'id': announcement.id, 'title': announcement.title, 'content': announcement.content} for announcement in announcements], 200
 
-
-# Admin Resources for Queries
-class AdminQueryResource(Resource):
     @jwt_required()
-    def get(self, query_id=None):
-        if query_id:
-            query = Query.query.get_or_404(query_id)
-            return {
-                'id': query.id,
-                'name': query.name,
-                'email': query.email,
-                'query': query.query,
-                'timestamp': query.timestamp
-            }, 200
-        queries = Query.query.all()
-        return [{'id': query.id, 'name': query.name, 'email': query.email, 'query': query.query, 'timestamp': query.timestamp} for query in queries], 200
-
-    @jwt_required()
+    @swag_from({
+        'tags': ['Announcements'],
+        'summary': 'Create Announcement',
+        'description': 'Create a new Announcement.',
+        'parameters': [
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'title': {'type': 'string'},
+                        'content': {'type': 'string'}
+                    },
+                    'required': ['title', 'content']
+                }
+            }
+        ],
+        'responses': {
+            201: {'description': 'Announcement created'}
+        }
+    })
     def post(self):
         data = request.get_json()
-        new_query = Query(
-            name=data['name'],
-            email=data['email'],
-            query=data['query']
+
+        new_announcement = Announcement(
+            title=data['title'],
+            content=data['content']
         )
-        db.session.add(new_query)
+        db.session.add(new_announcement)
         db.session.commit()
-        return {'message': 'Query submitted'}, 201
+
+        return {'message': 'Announcement created successfully'}, 201
 
     @jwt_required()
-    def put(self, query_id):
+    @swag_from({
+        'tags': ['Announcements'],
+        'summary': 'Update Announcement',
+        'description': 'Update an existing Announcement by its ID.',
+        'parameters': [
+            {
+                'name': 'announcement_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            },
+            {
+                'name': 'body',
+                'in': 'body',
+                'required': True,
+                'schema': {
+                    'properties': {
+                        'title': {'type': 'string'},
+                        'content': {'type': 'string'}
+                    },
+                    'required': ['title', 'content']
+                }
+            }
+        ],
+        'responses': {
+            200: {'description': 'Announcement updated'}
+        }
+    })
+    def put(self, announcement_id):
         data = request.get_json()
-        query = Query.query.get_or_404(query_id)
-        
-        query.name = data['name']
-        query.email = data['email']
-        query.query = data['query']
+        announcement = Announcement.query.get_or_404(announcement_id)
+
+        announcement.title = data['title']
+        announcement.content = data['content']
         db.session.commit()
 
-        return {'message': 'Query updated'}, 200
+        return {'message': 'Announcement updated successfully'}, 200
 
     @jwt_required()
-    def delete(self, query_id):
-        query = Query.query.get_or_404(query_id)
-        db.session.delete(query)
+    @swag_from({
+        'tags': ['Announcements'],
+        'summary': 'Delete Announcement',
+        'description': 'Delete an Announcement by its ID.',
+        'parameters': [
+            {
+                'name': 'announcement_id',
+                'in': 'path',
+                'type': 'integer',
+                'required': True
+            }
+        ],
+        'responses': {
+            200: {'description': 'Announcement deleted'}
+        }
+    })
+    def delete(self, announcement_id):
+        announcement = Announcement.query.get_or_404(announcement_id)
+        db.session.delete(announcement)
         db.session.commit()
-        return {'message': 'Query deleted'}, 200
-
-
-# Admin Resources for Feedback
-class AdminFeedbackResource(Resource):
-    @jwt_required()
-    def get(self, feedback_id=None):
-        if feedback_id:
-            feedback = Feedback.query.get_or_404(feedback_id)
-            return {
-                'id': feedback.id,
-                'name': feedback.name,
-                'email': feedback.email,
-                'feedback': feedback.feedback,
-                'timestamp': feedback.timestamp
-            }, 200
-        feedbacks = Feedback.query.all()
-        return [{
-            'id': feedback.id,
-            'name': feedback.name,
-            'email': feedback.email,
-            'feedback': feedback.feedback,
-            'timestamp': feedback.timestamp
-        } for feedback in feedbacks], 200
-
-    @jwt_required()
-    def post(self):
-        data = request.get_json()
-        new_feedback = Feedback(
-            name=data['name'],
-            email=data['email'],
-            feedback=data['feedback']
-        )
-        db.session.add(new_feedback)
-        db.session.commit()
-        return {'message': 'Feedback submitted'}, 201
-
-    @jwt_required()
-    def put(self, feedback_id):
-        data = request.get_json()
-        feedback = Feedback.query.get_or_404(feedback_id)
-
-        feedback.name = data['name']
-        feedback.email = data['email']
-        feedback.feedback = data['feedback']
-        db.session.commit()
-
-        return {'message': 'Feedback updated'}, 200
-
-    @jwt_required()
-    def delete(self, feedback_id):
-        feedback = Feedback.query.get_or_404(feedback_id)
-        db.session.delete(feedback)
-        db.session.commit()
-        return {'message': 'Feedback deleted'}, 200
-
-
-# Guest Resources for Queries
-class GuestQueryResource(Resource):
-    def post(self):
-        data = request.get_json()
-        new_query = Query(
-            name=data['name'],
-            email=data['email'],
-            query=data['query']
-        )
-        db.session.add(new_query)
-        db.session.commit()
-        return {'message': 'Query submitted'}, 201
-
-
-# Guest Resources for Feedback
-class GuestFeedbackResource(Resource):
-    def post(self):
-        data = request.get_json()
-        new_feedback = Feedback(
-            name=data['name'],
-            email=data['email'],
-            feedback=data['feedback']
-        )
-        db.session.add(new_feedback)
-        db.session.commit()
-        return {'message': 'Feedback submitted'}, 201
-
-
-
-
-
-
+        return {'message': 'Announcement deleted successfully'}, 200
+    
 
 
 

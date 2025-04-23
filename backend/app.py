@@ -1,71 +1,44 @@
 from flask import Flask
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
-from flask_migrate import Migrate  # Import Migrate
+from flask_migrate import Migrate
 from models import db
+from flasgger import Swagger
 from resources import (
     UserResource,
-    GuestMillingProcessResource, AdminMillingProcessResource,
-    GuestAggressionProcessResource, AdminAggressionProcessResource,
-    GuestFarmProgressionResource, AdminFarmProgressionResource,
-    GuestHowToResource, AdminHowToResource,
-    GuestAnnouncementResource, AdminAnnouncementResource,
-    AdminProductResource, GuestProductResource,
-    AdminNurseryResource, GuestNurseryResource,
-    AdminAboutUsResource, GuestAboutUsResource,
-    AdminFeedbackResource, AdminQueryResource  # Added AdminFeedbackResource and AdminQueryResource
+    ProductResource, NurseryResource, AboutUsResource,
+    MillingProcessResource, AggressionProcessResource, FarmProgressionResource,
+    HowToResource, AnnouncementResource
 )
 from config import Config
 
 app = Flask(__name__)
-
-# Load configurations from the Config class
 app.config.from_object(Config)
 
-# Initialize database and JWT manager
+api = Api(app)
 db.init_app(app)
 jwt = JWTManager(app)
-
-# Initialize Flask-Migrate for database migrations
 migrate = Migrate(app, db)
+swagger = Swagger(app)
 
-# Initialize Flask-RESTful API
-api = Api(app)
-
-# Add user resource (for authentication or user management)
-api.add_resource(UserResource, '/users')
-
-# Guest Routes
-api.add_resource(GuestMillingProcessResource, '/guest/millingprocesses')
-api.add_resource(GuestAggressionProcessResource, '/guest/aggressionprocesses')
-api.add_resource(GuestFarmProgressionResource, '/guest/farmprogressions')
-api.add_resource(GuestHowToResource, '/guest/howtos')
-api.add_resource(GuestAnnouncementResource, '/guest/announcements')
-
-# Admin Routes
-api.add_resource(AdminMillingProcessResource, '/admin/millingprocesses', '/admin/millingprocesses/<int:id>')
-api.add_resource(AdminAggressionProcessResource, '/admin/aggressionprocesses', '/admin/aggressionprocesses/<int:id>')
-api.add_resource(AdminFarmProgressionResource, '/admin/farmprogressions', '/admin/farmprogressions/<int:id>')
-api.add_resource(AdminHowToResource, '/admin/howtos', '/admin/howtos/<int:id>')
-api.add_resource(AdminAnnouncementResource, '/admin/announcements', '/admin/announcements/<int:id>')
-
-# Admin Routes for Product, Nursery, About Us
-api.add_resource(AdminProductResource, '/admin/products', '/admin/products/<int:product_id>')
-api.add_resource(AdminNurseryResource, '/admin/nurseries', '/admin/nurseries/<int:nursery_id>')
-api.add_resource(AdminAboutUsResource, '/admin/aboutus', '/admin/aboutus/<int:about_us_id>')
-
-# Guest Routes for Product, Nursery, About Us
-api.add_resource(GuestProductResource, '/guest/products', '/guest/products/<int:product_id>')
-api.add_resource(GuestNurseryResource, '/guest/nurseries', '/guest/nurseries/<int:nursery_id>')
-api.add_resource(GuestAboutUsResource, '/guest/aboutus', '/guest/aboutus')
-
-# Admin Routes for Feedback and Queries (with dynamic ID support)
-api.add_resource(AdminFeedbackResource, '/admin/feedback', '/admin/feedback/<int:feedback_id>')  # Admin reviews feedback
-api.add_resource(AdminQueryResource, '/admin/queries', '/admin/queries/<int:query_id>')  # Admin reviews queries
+# === Core Resources ===
+api.add_resource(UserResource, '/user/<int:user_id>')
+api.add_resource(ProductResource, '/product', '/product/<int:product_id>')
+api.add_resource(NurseryResource, '/nursery', '/nursery/<int:nursery_id>')
+api.add_resource(AboutUsResource, '/about-us')
+api.add_resource(MillingProcessResource, '/milling-process', '/milling-process/<int:process_id>')
+api.add_resource(AggressionProcessResource, '/aggression-process', '/aggression-process/<int:process_id>')
+api.add_resource(FarmProgressionResource, '/farm-progression')
+api.add_resource(HowToResource, '/how-to', '/how-to/<int:guide_id>')
+api.add_resource(AnnouncementResource, '/announcement', '/announcement/<int:announcement_id>')
 
 if __name__ == '__main__':
-    # Run the app in debug mode for development
     app.run(debug=True)
+
+
+
+
+
 
 
 

@@ -5,6 +5,7 @@ db = SQLAlchemy()
 
 # User Model
 class User(db.Model):
+    """User model representing the user of the application."""
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
@@ -16,6 +17,7 @@ class User(db.Model):
 
 # Product model for Admin and Guest resources
 class Product(db.Model):
+    """Product model representing a product in the system."""
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -28,6 +30,7 @@ class Product(db.Model):
 
 # Nursery model for Admin and Guest resources
 class Nursery(db.Model):
+    """Nursery model representing a nursery in the system."""
     __tablename__ = 'nurseries'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -40,6 +43,7 @@ class Nursery(db.Model):
 
 # AboutUs model for Admin and Guest resources
 class AboutUs(db.Model):
+    """AboutUs model providing details about the organization."""
     __tablename__ = 'about_us'
     id = db.Column(db.Integer, primary_key=True)
     who_we_are = db.Column(db.Text, nullable=True)
@@ -55,6 +59,7 @@ class AboutUs(db.Model):
 
 # MillingProcess model (Admin & Guest Resources)
 class MillingProcess(db.Model):
+    """Milling process model representing various milling processes."""
     __tablename__ = 'milling_processes'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -66,6 +71,7 @@ class MillingProcess(db.Model):
 
 # AggressionProcess model (Admin & Guest Resources)
 class AggressionProcess(db.Model):
+    """Aggression process model representing various aggression processes."""
     __tablename__ = 'aggression_processes'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -77,6 +83,7 @@ class AggressionProcess(db.Model):
 
 # FarmProgression model (Admin & Guest Resources)
 class FarmProgression(db.Model):
+    """Farm progression model for tracking farm activities and improvements."""
     __tablename__ = 'farm_progressions'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -88,6 +95,7 @@ class FarmProgression(db.Model):
 
 # HowTo model (Admin & Guest Resources)
 class HowTo(db.Model):
+    """HowTo model for providing instructional content."""
     __tablename__ = 'how_tos'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
@@ -99,6 +107,7 @@ class HowTo(db.Model):
 
 # Announcement model (Admin & Guest Resources)
 class Announcement(db.Model):
+    """Announcement model for storing organizational announcements."""
     __tablename__ = 'announcements'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
@@ -107,31 +116,7 @@ class Announcement(db.Model):
     def __repr__(self):
         return f"<Announcement {self.title}>"
 
-# Query model for storing user queries
-class Query(db.Model):
-    __tablename__ = 'queries'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), nullable=False)
-    query = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    feedback_id = db.Column(db.Integer, db.ForeignKey('feedbacks.id'), nullable=True)
-    
-    feedback = db.relationship('Feedback', backref='query', uselist=False)
 
-    def __repr__(self):
-        return f"<Query {self.id} from {self.name}>"
-
-# Feedback model for storing admin feedback on queries
-class Feedback(db.Model):
-    __tablename__ = 'feedbacks'
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), nullable=False)
-    feedback = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f"<Feedback by {self.email}>"
 
 
 

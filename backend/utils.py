@@ -1,113 +1,63 @@
 import os
-from functools import wraps
-from flask_jwt_extended import get_jwt_identity
-from models import User
-from flask import jsonify, g, abort
+from werkzeug.utils import secure_filename
+from PIL import Image
 
-# Admin access required decorator
-def admin_required(fn):
-    @wraps(fn)
-    def decorated_view(*args, **kwargs):
-        # Get the current user's ID from the JWT identity
-        current_user_id = get_jwt_identity()
-
-        # If the current_user_id is None, the JWT identity is invalid or expired
-        if current_user_id is None:
-            return jsonify({
-                'status': 'error',
-                'message': 'User not found in JWT identity'
-            }), 401
-
-        # Query the User model using the user ID
-        user = User.query.get(current_user_id)
-
-        # If the user does not exist in the database, return 404
-        if user is None:
-            return jsonify({
-                'status': 'error',
-                'message': 'User not found'
-            }), 404
-
-        # Check if the user has admin privileges
-        if not user.is_admin:
-            return jsonify({
-                'status': 'error',
-                'message': 'Admin access required'
-            }), 403
-
-        # Store the user object in `g` for later use in other parts of the application (optional)
-        g.current_user = user
-
-        # Proceed to the wrapped view function
-        return fn(*args, **kwargs)
-    
-    return decorated_view
-
-
-# File type validation functions
-ALLOWED_PHOTO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'mkv', 'avi'}
+# Allowed image extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_photo(filename):
     """
-    Check if the file is a valid photo type based on the file extension.
+    Check if the filename has a valid image extension.
+
+    Args:
+        filename (str): Name of the uploaded file.
+
+    Returns:
+        bool: True if valid image extension, else False.
     """
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_PHOTO_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def allowed_video(filename):
+def save_photo(file, upload_folder):
     """
-    Check if the file is a valid video type based on the file extension.
+    Save a photo file to the specified upload folder.
+
+    Args:
+        file (FileStorage): The image file to be saved.
+        upload_folder (str): Directory to save the file.
+
+    Returns:
+        str: Path to the saved image or None if invalid.
     """
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_VIDEO_EXTENSIONS
+    if file and allowed_photo(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(upload_folder, filename)
+        file.save(file_path)
+        return file_path
+    return None
 
-
-# New resource access function that verifies if a user has access to the resource
-def resource_access_required(resource_type):
+def create_thumbnail(file_path, thumbnail_size=(100, 100)):
     """
-    Custom decorator to validate access to specific resources based on roles.
+    Generate a thumbnail from a saved image file.
+
+    Args:
+        file_path (str): Full path of the image.
+        thumbnail_size (tuple): Size for the thumbnail (width, height).
+
+    Returns:
+        str: Path to the saved thumbnail or None on failure.
     """
-    def decorator(fn):
-        @wraps(fn)
-        def wrapped_view(*args, **kwargs):
-            # Retrieve the current user from the JWT identity
-            current_user_id = get_jwt_identity()
+    try:
+        with Image.open(file_path) as img:
+            img.thumbnail(thumbnail_size)
+            base, ext = os.path.splitext(file_path)
+            thumbnail_path = f"{base}_thumbnail{ext}"
+            img.save(thumbnail_path)
+            return thumbnail_path
+    except Exception as e:
+        print(f"Error creating thumbnail: {e}")
+        return None
 
-            if current_user_id is None:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'User not found in JWT identity'
-                }), 401
 
-            # Query the User model for the current user
-            user = User.query.get(current_user_id)
-
-            if user is None:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'User not found'
-                }), 404
-
-            # Additional checks for specific resource access can go here
-            if resource_type == 'admin' and not user.is_admin:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Admin access required for this resource'
-                }), 403
-
-            # Handle invalid resource types
-            if resource_type not in ['admin', 'user']:  # Can expand with other resource types as needed
-                return jsonify({
-                    'status': 'error',
-                    'message': f'Invalid resource type: {resource_type}'
-                }), 400
-
-            # Store the user in `g` for use in view functions
-            g.current_user = user
-
-            return fn(*args, **kwargs)
-        
-        return wrapped_view
-    return decorator
 
 
 
