@@ -2,6 +2,7 @@ from flask import Flask
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
+from flask_cors import CORS
 from models import db
 from flasgger import Swagger
 from resources import (
@@ -14,6 +15,9 @@ from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Enable CORS for all localhost ports
+CORS(app, resources={r"/*": {"origins": r"http://localhost:\d+"}})
 
 api = Api(app)
 db.init_app(app)
@@ -34,6 +38,7 @@ api.add_resource(AnnouncementResource, '/announcement', '/announcement/<int:anno
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 

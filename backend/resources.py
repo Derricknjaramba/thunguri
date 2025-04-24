@@ -382,17 +382,25 @@ class NurseryResource(Resource):
 
 # class AboutUsResource(Resource):
 class AboutUsResource(Resource):
+
     @swag_from({
         'tags': ['About Us'],
         'summary': 'Retrieve About Us details',
         'description': 'Fetch the About Us details.',
         'responses': {
-            200: {'description': 'About Us details retrieved successfully'}
+            200: {'description': 'About Us details retrieved successfully'},
+            404: {'description': 'About Us record not found'}
         }
     })
     def get(self):
         about_us = AboutUs.query.first()
-        return {'id': about_us.id, 'description': about_us.description}, 200
+        if about_us is None:
+            return {'message': 'About Us record not found'}, 404
+
+        return {
+            'id': about_us.id,
+            'description': about_us.description
+        }, 200
 
     @jwt_required()
     @swag_from({
@@ -413,12 +421,16 @@ class AboutUsResource(Resource):
             }
         ],
         'responses': {
-            200: {'description': 'About Us updated successfully'}
+            200: {'description': 'About Us updated successfully'},
+            404: {'description': 'About Us record not found'}
         }
     })
     def put(self):
         data = request.get_json()
         about_us = AboutUs.query.first()
+
+        if about_us is None:
+            return {'message': 'About Us record not found'}, 404
 
         about_us.description = data['description']
         db.session.commit()
@@ -450,9 +462,7 @@ class AboutUsResource(Resource):
     def post(self):
         data = request.get_json()
 
-        new_about_us = AboutUs(
-            description=data['description']
-        )
+        new_about_us = AboutUs(description=data['description'])
         db.session.add(new_about_us)
         db.session.commit()
 
@@ -463,27 +473,19 @@ class AboutUsResource(Resource):
         'tags': ['About Us'],
         'summary': 'Delete About Us details',
         'description': 'Delete the About Us record.',
-        'parameters': [
-            {
-                'name': 'about_us_id',
-                'in': 'path',
-                'type': 'integer',
-                'required': True,
-                'description': 'ID of the About Us record to delete'
-            }
-        ],
         'responses': {
-            200: {'description': 'About Us deleted successfully'}
+            200: {'description': 'About Us deleted successfully'},
+            404: {'description': 'No About Us record found to delete'}
         }
     })
     def delete(self):
-        about_us = AboutUs.query.first()  # Assuming there's only one AboutUs record
-        if about_us:
-            db.session.delete(about_us)
-            db.session.commit()
-            return {'message': 'About Us deleted successfully'}, 200
-        else:
+        about_us = AboutUs.query.first()
+        if about_us is None:
             return {'message': 'No About Us record found to delete'}, 404
+
+        db.session.delete(about_us)
+        db.session.commit()
+        return {'message': 'About Us deleted successfully'}, 200
 class MillingProcessResource(Resource):
     @swag_from({
         'tags': ['Milling Process'],
@@ -582,19 +584,27 @@ class MillingProcessResource(Resource):
         return {'message': 'Milling Process created successfully'}, 201
 
 
-#
+
 class AggressionProcessResource(Resource):
+
     @swag_from({
         'tags': ['Aggression Process'],
         'summary': 'Retrieve Aggression Process details',
         'description': 'Fetch the Aggression Process details.',
         'responses': {
-            200: {'description': 'Aggression Process details retrieved successfully'}
+            200: {'description': 'Aggression Process details retrieved successfully'},
+            404: {'description': 'Aggression Process not found'}
         }
     })
     def get(self):
         aggression_process = AggressionProcess.query.first()
-        return {'id': aggression_process.id, 'description': aggression_process.description}, 200
+        if aggression_process is None:
+            return {'message': 'Aggression Process not found'}, 404
+
+        return {
+            'id': aggression_process.id,
+            'description': aggression_process.description
+        }, 200
 
     @jwt_required()
     @swag_from({
@@ -615,12 +625,16 @@ class AggressionProcessResource(Resource):
             }
         ],
         'responses': {
-            200: {'description': 'Aggression Process updated successfully'}
+            200: {'description': 'Aggression Process updated successfully'},
+            404: {'description': 'Aggression Process not found'}
         }
     })
     def put(self):
         data = request.get_json()
         aggression_process = AggressionProcess.query.first()
+
+        if aggression_process is None:
+            return {'message': 'Aggression Process not found'}, 404
 
         aggression_process.description = data['description']
         db.session.commit()
@@ -666,11 +680,15 @@ class AggressionProcessResource(Resource):
         'summary': 'Delete Aggression Process',
         'description': 'Delete the Aggression Process from the system.',
         'responses': {
-            200: {'description': 'Aggression Process deleted successfully'}
+            200: {'description': 'Aggression Process deleted successfully'},
+            404: {'description': 'Aggression Process not found'}
         }
     })
     def delete(self):
         aggression_process = AggressionProcess.query.first()
+        if aggression_process is None:
+            return {'message': 'Aggression Process not found'}, 404
+
         db.session.delete(aggression_process)
         db.session.commit()
         return {'message': 'Aggression Process deleted successfully'}, 200
@@ -682,11 +700,16 @@ class FarmProgressionResource(Resource):
         'summary': 'Retrieve Farm Progression details',
         'description': 'Fetch the Farm Progression details.',
         'responses': {
-            200: {'description': 'Farm Progression details retrieved successfully'}
+            200: {'description': 'Farm Progression details retrieved successfully'},
+            404: {'description': 'Farm Progression not found'}
         }
     })
     def get(self):
         farm_progression = FarmProgression.query.first()
+        
+        if not farm_progression:
+            return {'message': 'Farm Progression not found'}, 404
+        
         return {
             'id': farm_progression.id,
             'description': farm_progression.description
@@ -711,12 +734,16 @@ class FarmProgressionResource(Resource):
             }
         ],
         'responses': {
-            200: {'description': 'Farm Progression updated successfully'}
+            200: {'description': 'Farm Progression updated successfully'},
+            404: {'description': 'Farm Progression not found'}
         }
     })
     def put(self):
         data = request.get_json()
         farm_progression = FarmProgression.query.first()
+
+        if not farm_progression:
+            return {'message': 'Farm Progression not found'}, 404
 
         farm_progression.description = data['description']
         db.session.commit()
@@ -729,13 +756,19 @@ class FarmProgressionResource(Resource):
         'summary': 'Delete Farm Progression',
         'description': 'Delete the Farm Progression from the system.',
         'responses': {
-            200: {'description': 'Farm Progression deleted successfully'}
+            200: {'description': 'Farm Progression deleted successfully'},
+            404: {'description': 'Farm Progression not found'}
         }
     })
     def delete(self):
         farm_progression = FarmProgression.query.first()
+        
+        if not farm_progression:
+            return {'message': 'Farm Progression not found'}, 404
+        
         db.session.delete(farm_progression)
         db.session.commit()
+        
         return {'message': 'Farm Progression deleted successfully'}, 200
 
     @jwt_required()
