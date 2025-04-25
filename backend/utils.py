@@ -67,3 +67,4 @@ def create_thumbnail(file_path, thumbnail_size=(100, 100)):
 
 
 
+
